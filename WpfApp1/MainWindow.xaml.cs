@@ -24,7 +24,8 @@ namespace WpfApp1
         public MainWindow()
         {
             InitializeComponent();
-            ((VMType)DataContext).Length = new UnitValue { Value = 50.12, Unit = "cm" };
+            ((VMType)DataContext).Length = new UnitValue { Value = 50.12, Unit = "cm", Type = MetricType.Distance };
+            ((VMType)DataContext).Altitude = new UnitValue { Value = 2250.12, Unit = "cm", Type = MetricType.Altitude };
         }
     }
 
@@ -32,13 +33,7 @@ namespace WpfApp1
     {
         UnitValue length;
         public UnitValue Length { get => length; set => this.RaiseAndSetIfChanged(ref length, value); }
-    }
-
-    public class UnitValue : ReactiveObject
-    {
-        double value;
-        public double Value { get => value; set => this.RaiseAndSetIfChanged(ref this.value, value); }
-        string unit;
-        public string Unit { get => unit; set => this.RaiseAndSetIfChanged(ref unit, value); }
+        UnitValue altitude;
+        public UnitValue Altitude { get => altitude; set => this.RaiseAndSetIfChanged(ref altitude, value); }
     }
 }

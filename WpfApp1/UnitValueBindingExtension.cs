@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ReactiveUI;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
@@ -14,12 +15,14 @@ namespace WpfApp1
     public class UnitValueBindingExtension : MarkupExtension
     {
         public PropertyPath Path { get; set; }
-        public string Unit { get; set; } = "m";
+        public string Unit { get; set; }
         public BindingMode Mode { get; set; }
         public string StringFormat { get; set; }
         public UpdateSourceTrigger UpdateSourceTrigger { get; set; }
 
         internal string SourceUnit { get; set; }
+        internal MetricType SourceMetricType { get; set; }
+        private IDisposable SourceMetricTypeBinding;
 
         public UnitValueBindingExtension() { }
 
@@ -29,6 +32,8 @@ namespace WpfApp1
         {
             var binding = new Binding { Converter = new UnitValueBindingExtensionConverter(this), Path = Path, Mode = Mode, StringFormat = StringFormat, UpdateSourceTrigger = UpdateSourceTrigger };
             var bindingexpression = (BindingExpression)binding.ProvideValue(serviceProvider);
+
+            var autoUnit = Unit is null;
 
             var target = (IProvideValueTarget)serviceProvider.GetService(typeof(IProvideValueTarget));
             var context = ((FrameworkElement)target.TargetObject).DataContext;
@@ -42,14 +47,24 @@ namespace WpfApp1
                 if (!(srcObject is null)) srcObject.PropertyChanged -= sourceObjectChangeDelegate;
 
                 srcObject = (UnitValue)srcPI.GetValue(context);
-                if (!(srcObject is null)) { srcObject.PropertyChanged += sourceObjectChangeDelegate; sourceObjectChangeDelegate(srcObject, new PropertyChangedEventArgs("Unit")); }
+                if (!(srcObject is null)) { srcObject.PropertyChanged += sourceObjectChangeDelegate; sourceObjectChangeDelegate(srcObject, new PropertyChangedEventArgs(null)); }
             }
             ((INotifyPropertyChanged)context).PropertyChanged += contextChangeDelegate;
             contextChangeDelegate(context, new PropertyChangedEventArgs(srcPI.Name));
 
             void sourceObjectChangeDelegate(object srcObject, PropertyChangedEventArgs e)
             {
-                if (e.PropertyName == "Unit") SourceUnit = ((UnitValue)srcObject).Unit;
+                if (e.PropertyName is null || e.PropertyName == "Unit") SourceUnit = ((UnitValue)srcObject).Unit;
+                if (autoUnit && (e.PropertyName is null || e.PropertyName == "Type"))
+                {
+                    SourceMetricTypeBinding?.Dispose();
+
+                    SourceMetricTypeBinding = (SourceMetricType = ((UnitValue)srcObject).Type) switch
+                    {
+                        MetricType.Altitude => MetricSettings.Instance.WhenAnyValue(x => x.AltitudeUnit).Subscribe(v => { Unit = v; bindingexpression.UpdateTarget(); }),
+                        MetricType.Distance => MetricSettings.Instance.WhenAnyValue(x => x.DistanceUnit).Subscribe(v => { Unit = v; bindingexpression.UpdateTarget(); }),
+                    };
+                }
                 bindingexpression.UpdateTarget();
             }
 
@@ -87,20 +102,24 @@ namespace WpfApp1
             ["m"] = 1,
             ["km"] = 0.0001,
             ["NM"] = 0.000539957,
+            ["ft"] = 3.28084,
         };
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is null) return null;
+            if (value is null || UnitValueBindingExtension.Unit is null) return null;
             var unitvalue = (UnitValue)value;
-            return System.Convert.ToDouble(unitvalue.Value) / MeterMultiplierTable[unitvalue.Unit] * MeterMultiplierTable[UnitValueBindingExtension.Unit];
+            return System.Convert.ToDouble(unitvalue.Value) / MeterMultiplierTable[unitvalue.Unit]
+                * MeterMultiplierTable[UnitValueBindingExtension.Unit];
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is null || string.IsNullOrWhiteSpace((string)value) ? null :
             new UnitValue
             {
                 Unit = UnitValueBindingExtension.SourceUnit,
-                Value = System.Convert.ToDouble(value) * MeterMultiplierTable[UnitValueBindingExtension.SourceUnit] / MeterMultiplierTable[UnitValueBindingExtension.Unit],
+                Value = System.Convert.ToDouble(value) * MeterMultiplierTable[UnitValueBindingExtension.SourceUnit]
+                    / MeterMultiplierTable[UnitValueBindingExtension.Unit],
+                Type = UnitValueBindingExtension.SourceMetricType
             };
     }
 }
