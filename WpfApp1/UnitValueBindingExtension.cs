@@ -22,7 +22,6 @@ namespace WpfApp1
 
         internal string SourceUnit { get; set; }
         internal MetricType SourceMetricType { get; set; }
-        private IDisposable SourceMetricTypeBinding;
 
         public UnitValueBindingExtension() { }
 
@@ -38,7 +37,9 @@ namespace WpfApp1
             var target = (IProvideValueTarget)serviceProvider.GetService(typeof(IProvideValueTarget));
             var context = ((FrameworkElement)target.TargetObject).DataContext;
             var srcPI = GetProperty(Path.Path, context);
+
             UnitValue srcObject = null;
+            IDisposable SourceMetricTypeBinding = null;
 
             void contextChangeDelegate(object context, PropertyChangedEventArgs e)
             {
