@@ -10,9 +10,9 @@
     <StackPanel Margin="30">
         <StackPanel Orientation="Horizontal">
             <TextBox Text="{Binding Length.Value, UpdateSourceTrigger=PropertyChanged}" MinWidth="250"/>
-            <Label Content="{Binding Length.Unit}"/>
+            <TextBlock Text="{Binding Length.Unit}"/>
             <TextBox Text="{local:UnitValueBinding Length, Unit=NM, UpdateSourceTrigger=PropertyChanged}" MinWidth="250"/>
-            <Label Content="NM"/>
+            <TextBlock Text="NM"/>
         </StackPanel>
 
         <StackPanel Orientation="Horizontal">

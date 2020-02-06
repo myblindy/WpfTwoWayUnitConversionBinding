@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Windows;
@@ -56,15 +57,21 @@ namespace WpfApp1
             void sourceObjectChangeDelegate(object srcObject, PropertyChangedEventArgs e)
             {
                 if (e.PropertyName is null || e.PropertyName == "Unit") SourceUnit = ((UnitValue)srcObject).Unit;
-                if (autoUnit && (e.PropertyName is null || e.PropertyName == "Type"))
+                if (e.PropertyName is null || e.PropertyName == "Type")
                 {
-                    SourceMetricTypeBinding?.Dispose();
+                    SourceMetricType = ((UnitValue)srcObject).Type;
 
-                    SourceMetricTypeBinding = (SourceMetricType = ((UnitValue)srcObject).Type) switch
+                    if (autoUnit)
                     {
-                        MetricType.Altitude => MetricSettings.Instance.WhenAnyValue(x => x.AltitudeUnit).Subscribe(v => { Unit = v; bindingexpression.UpdateTarget(); }),
-                        MetricType.Distance => MetricSettings.Instance.WhenAnyValue(x => x.DistanceUnit).Subscribe(v => { Unit = v; bindingexpression.UpdateTarget(); }),
-                    };
+                        SourceMetricTypeBinding?.Dispose();
+
+                        SourceMetricTypeBinding = MetricSettings.Instance.WhenAnyValue(
+                            SourceMetricType switch
+                            {
+                                MetricType.Altitude => (Expression<Func<MetricSettings, string>>)(x => x.AltitudeUnit),
+                                MetricType.Distance => x => x.DistanceUnit
+                            }).Subscribe(v => { Unit = v; bindingexpression.UpdateTarget(); });
+                    }
                 }
                 bindingexpression.UpdateTarget();
             }
